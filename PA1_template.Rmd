@@ -1,0 +1,96 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+author: Fernando DePaolis
+output: 
+  html_document:
+    keep_md: true
+---
+```{r, echo=FALSE, message=F, warning=F}
+library(plyr)
+library(dplyr)
+library(Hmisc)
+library(ggplot2)
+```
+
+## Loading and preprocessing the data
+```{r, results='asis'}
+activity<- read.csv ("activity.csv", header=TRUE, sep=",")
+attach(activity)
+```
+
+
+## What is mean total number of steps taken per day?
+```{r}
+summary(activity)
+##Mean total number of steps per day
+steps.day<-aggregate(steps~date, FUN=sum)
+mean(steps.day$steps)
+median(steps.day$steps)
+```
+
+###Histogram of Steps taken per day
+```{r}
+hist(steps.day$steps, breaks = 20, 
+     main = paste("Steps per day"), xlab = "Steps", 
+     density = 30, angle=45, 
+     border="black", col="lightblue")
+```
+
+## What is the average daily activity pattern?
+
+```{r}
+steps.interval <- aggregate(steps~interval, FUN=mean)
+mean(steps.interval$steps)
+```
+
+
+###Line chart of Steps Taken
+```{r}
+ggplot(mapping = aes(x = unique(activity$interval), y = steps.interval$steps)) + 
+        geom_line(col="indian red") + scale_x_continuous("5min intervals (similar to military time)", breaks = seq(min(unique(activity$interval)), max(unique(activity$interval)), 100)) + 
+        scale_y_continuous("Mean Steps per Period") + ggtitle("Average Number of Steps Taken by Interval") + theme(axis.text.x = element_text(size = rel(.75), angle = 00))
+```
+
+
+## Imputing missing values
+[based on solution at http://grokbase.com/t/r/r-help/0969yezzan/r-how-to-substitute-missing-values-nas-by-the-group-means]
+```{r, results='hide',warning=FALSE, message=FALSE}
+
+activity2 <- activity
+
+as.numeric(apply(activity2, 1, function (x)
+        ifelse( is.na(x[2]),
+        tapply(activity2$steps,activity2$interval,
+        mean, na.rm=TRUE)[x[1]],
+        x[2])))
+
+attach(activity2)
+steps.day2<-aggregate(steps~date, FUN=sum)
+```
+```{r, results='show',warning=FALSE, message=TRUE}
+mean(steps.day2$steps)
+median(steps.day2$steps)
+```
+###Histogram "AFTER" imputing data to missing valus
+```{r}
+hist(steps.day2$steps, breaks = 20, 
+     main = paste("Steps per day"), xlab = "Steps", 
+     density = 30, angle=45, 
+     border="black", col="lightblue")
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+###Assigning days of the week (weekday/weekend) to dates
+```{r}
+activity2$day.type <- ifelse(weekdays(as.Date(activity2$date)) %in% c("Saturday", "Sunday"),"weekend","weekday")
+```
+
+###Line chart panels by type of day of the week
+```{r}
+activity3 <- activity2 %>% group_by(interval, day.type) %>% summarise(meanSteps = mean(steps, na.rm = TRUE))
+
+ggplot(data = activity3, mapping = aes(x = interval, y = meanSteps)) + 
+        geom_line(col="indian red") + facet_grid(day.type ~ .) + scale_x_continuous("5min intervals (similar to military time)", breaks = seq(min(activity3$interval), max(activity3$interval), 100)) + 
+        scale_y_continuous("Mean Steps per Period") + ggtitle("Average Number of Steps Taken by Interval") + theme(axis.text.x = element_text(size = rel(.75), angle = 00))
+```
+
